@@ -2,9 +2,11 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import connectDB from '@/lib/mongodb'
 import Post from '@/models/Post'
+import Category from '@/models/Category'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 import DeletePostButton from '@/components/dashboard/DeletePostButton'
+import PublishPostButton from '@/components/dashboard/PublishPostButton'
 
 // Status badge component — color coded by status
 function StatusBadge({ status }) {
@@ -144,6 +146,14 @@ export default async function PostsPage() {
                         >
                           View ↗
                         </Link>
+                      )}
+
+                      {post.status !== 'published' && (
+                      <PublishPostButton
+                        postId={post._id.toString()}
+                        role={session.user.role}
+                        status={post.status}
+                      />
                       )}
 
                       {/* Delete button — client component because it needs onClick */}

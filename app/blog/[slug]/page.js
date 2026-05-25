@@ -1,6 +1,7 @@
 import { formatDate } from '@/lib/utils'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import CommentSection from '@/components/blog/CommentSection'
 
 async function getPost(slug) {
   const res = await fetch(`${process.env.NEXTAUTH_URL}/api/posts/by-slug/${slug}`, {
@@ -11,7 +12,8 @@ async function getPost(slug) {
 }
 
 export default async function PostPage({ params }) {
-  const data = await getPost(params.slug)
+  const { slug } = await params
+  const data = await getPost(slug)
 
   if (!data?.post) notFound()
 
@@ -83,6 +85,9 @@ export default async function PostPage({ params }) {
         dangerouslySetInnerHTML={{ __html: post.content }}
       />
 
+      {/* Comments */}
+      <CommentSection postId={post._id.toString()} />
     </div>
+    
   )
 }

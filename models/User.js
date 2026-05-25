@@ -31,6 +31,13 @@ const UserSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+      // false = deactivated, cannot log in
+      // We never hard delete users — posts reference them
+      // Deactivating is the safe way to remove access
+    },
   },
   { timestamps: true }
 )

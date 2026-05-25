@@ -13,10 +13,10 @@ export async function GET(request, { params }) {
     if (!session) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
+    const { id } = await params
     await connectDB()
 
-    const post = await Post.findById(params.id)
+    const post = await Post.findById(id)
       .populate('category', 'name slug')
       .populate('tags', 'name slug _id')
       .populate('series', 'title slug')
@@ -48,10 +48,10 @@ export async function PUT(request, { params }) {
     if (!session) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
+    const { id } = await params
     await connectDB()
 
-    const post = await Post.findById(params.id)
+    const post = await Post.findById(id)
     if (!post) {
       return Response.json({ error: 'Post not found' }, { status: 404 })
     }
@@ -96,7 +96,7 @@ export async function PUT(request, { params }) {
 
     // Update the post
     const updatedPost = await Post.findByIdAndUpdate(
-      params.id,
+      id,
       {
         title: title?.trim(),
         // Regenerate slug only if title changed
@@ -141,10 +141,10 @@ export async function DELETE(request, { params }) {
     if (!session) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
+    const { id } = await params
     await connectDB()
 
-    const post = await Post.findById(params.id)
+    const post = await Post.findById(id)
     if (!post) {
       return Response.json({ error: 'Post not found' }, { status: 404 })
     }
@@ -163,7 +163,7 @@ export async function DELETE(request, { params }) {
       }
     }
 
-    await Post.findByIdAndDelete(params.id)
+    await Post.findByIdAndDelete(id)
 
     // Decrement postCount for all tags this post had
     if (post.tags.length > 0) {
@@ -183,6 +183,69 @@ export async function DELETE(request, { params }) {
     })
 
     return Response.json({ message: 'Post deleted successfully' })
+
+  } catch (error) {
+    return Response.json({ error: error.message }, { status: 500 })
+  }
+}
+
+// PUT — update post (edit content or change status)
+export async function PATCH(request, { params }) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    await connectDB()
+    const { id } = await params 
+    const post = await Post.findById(id)
+    if (!post) {
+      return Response.json({ error: 'Post not found' }, { status: 404 })
+    }
+
+    // Writers cannot publish directly — only admin and editor can
+    if (session.user.role === 'writer' && status === 'published') {
+      return Response.json(
+        { error: 'Writers cannot publish directly. Submit for review instead.' },
+        { status: 403 }
+      )
+    }
+
+    const body = await request.json()
+    const { status } = body
+    if (!['draft', 'published', 'published'].includes(status)) {
+      return Response.json({ error: 'Invalid status' }, { status: 400 })
+    }
+
+
+    // If post is being published for the first time, set publishedAt
+    const isBeingPublished = status === 'published' && post.status !== 'published'
+
+    // Update the post
+    const updatedPost = await Post.findByIdAndUpdate(
+      id,
+      {
+        status,
+        // Only set publishedAt when first published, never overwrite it
+        ...(isBeingPublished && { publishedAt: new Date() }),
+      },
+      { new: true }
+      // new: true returns the updated document, not the old one
+    )
+
+    // Log this action to AuditLog if status changed
+    if (status !== post.status) {
+      await AuditLog.create({
+        performedBy: session.user.id,
+        action: status === 'published' ? 'post_published' : 'post_rejected',
+        targetType: 'Post',
+        targetId: post._id,
+        details: `Status changed from ${post.status} to ${status}`,
+      })
+    }
+
+    return Response.json({ post: updatedPost })
 
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 })

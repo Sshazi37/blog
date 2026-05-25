@@ -117,17 +117,39 @@ All models created in `/models/` folder:
 - JSON.parse(JSON.stringify()) when passing MongoDB data server → client
 - Key operators learned: $pull, $lookup, $addFields, $filter, $arrayElemAt, $project
 
-### 🔄 Step 11 — Analytics Dashboard
-- Recharts bar/line charts
-- This week / last week / monthly / 6-month filters
+### ✅ Step 11 — Analytics Dashboard + Unique View Tracking
+- View model updated — fingerprint field (SHA-256 hash of IP+UserAgent), compound index
+- Unique view logic — 24hr window per fingerprint per post, x-forwarded-for for real IP
+- GET /api/analytics — period filters (week/lastweek/month/3months/6months), parallel queries
+- $dateToString aggregation — groups views by day for chart data
+- Top posts aggregation — $group by postId, $sort, $limit 5, $lookup posts
+- Percentage change formula — ((current - previous) / previous) * 100
+- Dashboard overview — mini area chart, week-over-week trend arrows
+- Full analytics page — period filter buttons, bar chart, top posts with proportional bars
+- Skeleton loading state on analytics page
+- Key concepts: SHA-256 fingerprinting, $dateToString, skeleton UI, proportional bar visualization
 
-### 📋 Step 12 — User Management
-- Admin creates users, assigns roles, deactivates accounts
+### ✅ Step 12 — User Management
+- Added isActive field to User model — deactivate without deleting
+- Updated lib/auth.js — blocks deactivated users from logging in
+- GET+POST /api/users — admin only, cannot create admin via UI
+- PUT+DELETE /api/users/[id] — role change, deactivate/reactivate, hard delete only if no posts
+- Self-protection — admin cannot change or delete their own account
+- UsersClient.js — role filter tabs, inline role dropdown, deactivate/reactivate/delete
+- Dynamic import for Post inside DELETE — avoids circular dependency
+- Key patterns: .select('-password'), inline select for role change, opacity-50 for deactivated rows
 
-### 📋 Step 13 — Comment System
-- Nested replies, moderation queue for editor/admin
+### ✅ Step 13 — Comment System
+- GET /api/comments?postId — fetches approved top-level comments with replies in parallel
+- POST /api/comments — creates comment/reply, auto-approves admin/editor, notifies post author
+- PUT /api/comments/[id] — moderation (status change) or content edit
+- DELETE /api/comments/[id] — deletes comment AND all its replies ($deleteMany)
+- CommentSection.js — recursive CommentItem component handles infinite nesting
+- handleCommentDeleted filters local state — no refetch needed on delete
+- CommentsClient.js — moderation queue, filter by status, approve/reject/spam buttons
+- Key patterns: recursive React component, auto-approve by role, parallel reply fetching
 
-### 📋 Step 14 — Subscriber Reader Dashboard
+### 🔄 Step 14 — Subscriber Reader Dashboard
 - Register, track reading progress, bookmarks, series tracker
 
 ### 📋 Step 15 — Final Features
